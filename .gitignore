@@ -1,0 +1,5 @@
+# ignore outputs
+figures/
+# editor cruft
+*~
+
