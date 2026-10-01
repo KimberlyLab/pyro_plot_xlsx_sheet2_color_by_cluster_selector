@@ -95,11 +95,23 @@ For `--xlsx data/my_workbook.xlsx --sheet Sheet2`, the HTML is `./figures/my_wor
 - **PDF:** 12 × 8 inches.
 - **PNG:** 12 × 8 inches at 300 dpi (3600 × 2400 pixels).
 
-## Download selected sample IDs
+## Usage: lasso selection and ID downloads
 
-1. Open the generated HTML in a browser.
-2. Choose **Box Select** or **Lasso Select** from the Plotly toolbar.
-3. Select points. Completing a nonempty selection triggers a text-file download using the browser's download settings.
+1. **Choose Lasso Select.** Open the generated `.plotly.html` file in a browser, hover over the plot to reveal the toolbar, and click **Lasso Select** near the upper right.
+
+   ![Plotly toolbar with the Lasso Select tool highlighted](docs/image/step1.plotly_select_lasso.png)
+
+2. **Draw around the points.** Click and drag a loop around the samples you want, then release the mouse button to finish the selection. Selected points remain highlighted while other points fade.
+
+   ![A lasso outline enclosing a cluster of selected points](docs/image/step2.plotly_lasso_points.png)
+
+3. **Save the ID list.** A nonempty selection automatically triggers a `.txt` download. Choose a location and click **Save** if prompted; otherwise, find the file in your browser's download location. These downloads follow browser settings, not the R script's `--outdir`.
+
+   ![Browser save dialog for the downloaded sample ID list](docs/image/step3.download_id_list.png)
+
+**Box Select** also works if you prefer a rectangular selection.
+
+### Download contents and filenames
 
 Hover text includes `ave_per_2a`, `ave_per_2b`, `CNR`, `3A`, and `3B`.
 
