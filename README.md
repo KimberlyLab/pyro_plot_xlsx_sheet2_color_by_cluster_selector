@@ -6,7 +6,7 @@ The interactive plot supports box and lasso selections that download the selecte
 
 ## Setup
 
-Install R and Pandoc, and make `Rscript` and `pandoc` available on your command-line path. Pandoc is needed to produce the self-contained HTML file.
+Install R and make `Rscript` available on your command-line path. Pandoc is optional: when available to R, it produces a single self-contained HTML file. Otherwise, the script saves HTML with a companion asset directory and continues to generate the PDF and PNG.
 
 Install the R packages once:
 
@@ -91,7 +91,7 @@ All plot outputs are saved in `--outdir` (default: `./figures/`). The directory 
 
 For `--xlsx data/my_workbook.xlsx --sheet Sheet2`, the HTML is `./figures/my_workbook.xlsx-Sheet2.plotly.html`. Adding `--outdir results/plots` saves it as `results/plots/my_workbook.xlsx-Sheet2.plotly.html`. The PDF and PNG share that prefix. Re-running with the same output directory, input basename, and sheet overwrites these outputs.
 
-- **HTML:** self-contained interactive plot; open it in a browser. The selection handler is embedded, so browser-console setup and a separate JavaScript file are unnecessary when viewing the saved HTML.
+- **HTML:** interactive plot; open it in a browser. With Pandoc, this is a single self-contained file. Without Pandoc, a companion `{input_basename}-{sheet}.plotly_files/` directory is saved in the output directory; keep it beside the HTML when moving or sharing the plot. The selection handler is embedded, so browser-console setup and the original `plotly_save_select_ids.js` file are unnecessary when viewing the saved HTML.
 - **PDF:** 12 × 8 inches.
 - **PNG:** 12 × 8 inches at 300 dpi (3600 × 2400 pixels).
 
@@ -129,5 +129,5 @@ The script retrieves IDs from the selected trace's `key` array using the point i
 - **Workbook not found:** check the input path relative to your current working directory, or pass an absolute path with `--xlsx`.
 - **Worksheet not found:** use its exact name with `--sheet`; the error lists available worksheets.
 - **Missing required columns:** check row 2 and ensure all required headers fall within A:P.
-- **HTML export fails because Pandoc is unavailable:** ensure `pandoc --version` works in the environment running Rscript.
+- **Pandoc unavailable message:** informational; HTML is saved with a companion `_files` directory, and PDF/PNG export continues. To generate a single self-contained HTML file, install Pandoc and ensure `Rscript -e 'rmarkdown::pandoc_available()'` returns `TRUE` in the environment running the script, then rerun it.
 - **Selection download does not appear:** use the selection tools rather than zoom, check the browser's download permissions, and inspect its console for missing-ID errors.

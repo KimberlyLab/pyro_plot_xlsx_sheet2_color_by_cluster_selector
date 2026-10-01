@@ -22,6 +22,7 @@ if (any(args %in% c("-h", "--help"))) {
     "Reads columns A:P, with headers in row 2 and data starting in row 3.\n",
     "Outputs in DIR: {input_basename}-{sheet}.plotly.html, .plotly.pdf, .plotly.png\n",
     "The output directory is created if it does not exist.\n",
+    "Without Pandoc, HTML assets are saved in an adjacent _files directory.\n",
     "The HTML includes selection downloads of sample IDs.\n"
   ))
   quit(status = 0)
@@ -125,12 +126,19 @@ selection_js <- paste(readLines(file.path(script_dir, "plotly_save_select_ids.js
 interactive_plot <- htmlwidgets::onRender(
   interactive_plot, paste0("function(el, x) {\n", selection_js, "\n}")
 )
-# A single portable HTML file; selfcontained = TRUE requires Pandoc.
+# Prefer a single portable HTML file; otherwise keep assets beside it.
 if (!dir.exists(outdir)) {
   dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
   if (!dir.exists(outdir)) stop("Could not create output directory: ", outdir)
 }
-htmlwidgets::saveWidget(interactive_plot, output_file, selfcontained = TRUE)
+selfcontained <- requireNamespace("rmarkdown", quietly = TRUE) &&
+  rmarkdown::pandoc_available()
+if (!selfcontained) {
+  message("Pandoc unavailable: saving HTML with a companion _files directory. ",
+          "Keep that directory with the HTML when moving or sharing it.")
+}
+htmlwidgets::saveWidget(interactive_plot, output_file,
+                        selfcontained = selfcontained)
 output_stem <- tools::file_path_sans_ext(output_file)
 ggplot2::ggsave(paste0(output_stem, ".pdf"), plot = p,
                 width = 12, height = 8, units = "in", bg = "white")
