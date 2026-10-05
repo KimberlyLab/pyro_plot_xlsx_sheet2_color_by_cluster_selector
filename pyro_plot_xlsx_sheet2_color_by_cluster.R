@@ -4,50 +4,40 @@
 #   Rscript pyro_plot_xlsx_sheet2_color_by_cluster.R --xlsx workbook.xlsx --sheet Sheet2
 # Use --help for all options. Relative input paths resolve from the cwd.
 # PDF and PNG outputs use the same path and basename as the HTML output.
-# All outputs go to --outdir (default: ./figures/).
 # Install dependencies once if needed:
-# install.packages(c("readxl", "ggplot2", "plotly", "htmlwidgets"))
+# install.packages(c("optparse", "readxl", "ggplot2", "plotly", "htmlwidgets"))
 
-args <- commandArgs(trailingOnly = TRUE)
-if (any(args %in% c("-h", "--help"))) {
-  cat(paste0(
-    "Usage: Rscript pyro_plot_xlsx_sheet2_color_by_cluster.R [options]\n\n",
-    "  --in, --xlsx, -x, -i FILE     Input workbook\n",
-    "    Default: export_v02_2ab_popgen1.mapv2.batch_corrected_norm.logit.xlsx\n",
-    "  -s, --sheet, --worksheet, -w NAME\n",
-    "                              Worksheet name (default: Sheet2)\n",
-    "  -o, --outdir DIR            Output directory (default: ./figures/)\n",
-    "  -h, --help                  Show this help and exit\n\n",
-    "Relative input paths resolve from the current working directory.\n",
-    "Reads columns A:P, with headers in row 2 and data starting in row 3.\n",
-    "Outputs in DIR: {input_basename}-{sheet}.plotly.html, .plotly.pdf, .plotly.png\n",
-    "The output directory is created if it does not exist.\n",
-    "Without Pandoc, HTML assets are saved in an adjacent _files directory.\n",
-    "The HTML includes selection downloads of sample IDs.\n"
-  ))
-  quit(status = 0)
+if (!requireNamespace("optparse", quietly = TRUE)) {
+  stop("Install required package: optparse", call. = FALSE)
 }
-input_file <- "export_v02_2ab_popgen1.mapv2.batch_corrected_norm.logit.xlsx"
-sheet_name <- "Sheet2"
-outdir <- "./figures/"
-input_flags <- c("--in", "--xlsx", "-x", "-i")
-sheet_flags <- c("-s", "--sheet", "--worksheet", "-w")
-outdir_flags <- c("-o", "--outdir")
-i <- 1L
-while (i <= length(args)) {
-  flag <- args[i]
-  if (!flag %in% c(input_flags, sheet_flags, outdir_flags)) {
-    stop("Unknown argument: ", flag, ". Use --help for usage.", call. = FALSE)
-  }
-  if (i == length(args) || !nzchar(args[i + 1L]) ||
-      startsWith(args[i + 1L], "-")) {
-    stop("Missing value for ", flag, ". Use --help for usage.", call. = FALSE)
-  }
-  if (flag %in% input_flags) input_file <- args[i + 1L]
-  if (flag %in% sheet_flags) sheet_name <- args[i + 1L]
-  if (flag %in% outdir_flags) outdir <- args[i + 1L]
-  i <- i + 2L
-}
+parser <- optparse::OptionParser(
+  description = "Plot workbook data with interactive selection downloads.",
+  option_list = list(
+    optparse::make_option(c("-x", "--xlsx"), dest = "input_file",
+                          default = "data/export_v02_2ab_popgen1.mapv2.batch_corrected_norm.logit.curatedv1.xlsx",
+                          metavar = "FILE",
+                          help = "Input workbook [default: %default]"),
+    optparse::make_option(c("-i", "--in"), dest = "input_file",
+                          metavar = "FILE", help = "Input workbook (alias)"),
+    optparse::make_option(c("-s", "--sheet"), dest = "sheet_name",
+                          default = "Sheet2", metavar = "NAME",
+                          help = "Worksheet name [default: %default]"),
+    optparse::make_option(c("-w", "--worksheet"), dest = "sheet_name",
+                          metavar = "NAME", help = "Worksheet name (alias)"),
+    optparse::make_option(c("-o", "--outdir"), dest = "outdir",
+                          default = "./figures/", metavar = "DIR",
+                          help = "Output directory [default: %default]")
+  ),
+  epilogue = paste(
+    "Relative paths resolve from the current working directory.",
+    "Reads columns A:R, with headers in row 2.",
+    "Saves Plotly HTML, PDF, and PNG files in the output directory."
+  )
+)
+options <- optparse::parse_args(parser)
+input_file <- options$input_file
+sheet_name <- options$sheet_name
+outdir <- options$outdir
 
 packages <- c("readxl", "ggplot2", "plotly", "htmlwidgets")
 missing_packages <- packages[!vapply(packages, requireNamespace,
@@ -74,15 +64,15 @@ if (!sheet_name %in% sheets) {
        paste(sheets, collapse = ", "))
 }
 
-# A:P includes the 3A and 3B hover columns in O:P.
+# A:R includes the required columns and the 3A and 3B hover columns.
 # Row 2 contains headers, and row 3 starts the observations.
 data <- readxl::read_excel(
   input_file,
   sheet = sheet_name,
-  range = readxl::cell_limits(c(2, 1), c(NA, 16)),
+  range = readxl::cell_limits(c(2, 1), c(NA, 18)),
   col_names = TRUE
 )
-required_columns <- c("sampleID", "ave_per_2a", "ave_per_2b", "ave_per_3a", "CNR", "3A", "3B")
+required_columns <- c("sampleID", "ave_per_2a", "ave_per_2b", "ave_per_3a", "GENERICID", "CNR", "PacBio", "CNRgrid", "3A", "3B")
 missing_columns <- setdiff(required_columns, names(data))
 if (length(missing_columns)) {
   stop("Missing required columns: ", paste(missing_columns, collapse = ", "))
@@ -93,6 +83,33 @@ if (!is.numeric(data$ave_per_2a) || !is.numeric(data$ave_per_2b)) {
 
 # Treat CNR as a categorical grouping, including when encoded as numbers.
 data$CNR <- factor(data$CNR)
+# Edit these named colors to change the color of any CNR value. Also support
+# the earlier "cendtroid" spelling if it appears in a workbook.
+cnr_colors <- c(
+  "0" = "#808080",            # medium gray
+  "centroid" = "#123B7A",     # dark blue
+  "cendtroid" = "#123B7A",    # earlier spelling
+  "cnr1_3xdup" = "#0072B2",
+  "comphet-25-40" = "#E69F00",
+  "phi" = "#009E73",
+  "cnr2_homodup" = "#D55E00",
+  "comphet40-25" = "#CC79A7",
+  "comphet50-33" = "#7F3C8D",
+  "comhet-75-50" = "#11A579",
+  "comphet33-50" = "#3969AC",
+  "cnr2_hetdel" = "#F2B701",
+  "cnr1_homodel" = "#E73F74",
+  "protective" = "#80BA5A",
+  "cnr2_hetdup" = "#E68310",
+  "cnr1_hetdup" = "#008695",
+  "cnr1_hetdel" = "#CF1C90"
+)
+cnr_levels <- levels(data$CNR)
+plot_colors <- stats::setNames(
+  grDevices::hcl.colors(length(cnr_levels), palette = "Dark 3"), cnr_levels
+)
+named_levels <- intersect(cnr_levels, names(cnr_colors))
+plot_colors[named_levels] <- cnr_colors[named_levels]
 valid <- is.finite(data$ave_per_2a) & is.finite(data$ave_per_2b)
 if (any(!valid)) {
   warning("Omitting ", sum(!valid), " rows with missing/non-finite coordinates.")
@@ -102,9 +119,10 @@ if (!nrow(data)) stop("No rows with finite x and y coordinates to plot.")
 
 p <- ggplot2::ggplot(
   data, ggplot2::aes(x = ave_per_2a, y = ave_per_2b, color = CNR,
-                     key = sampleID)
+                     key = sampleID, shape = PacBio)
 ) +
   ggplot2::geom_point(size = 2, alpha = 0.75) +
+  ggplot2::scale_color_manual(values = plot_colors) +
   ggplot2::labs(
     title = paste0(basename(input_file), "\nSheet: ", sheet_name),
     x = "ave_per_2a", y = "ave_per_2b", color = "CNR"
@@ -113,7 +131,10 @@ p <- ggplot2::ggplot(
 
 # Carry numeric 3A averages separately from the displayed 3A copy-number column.
 hover_plot <- p + ggplot2::aes(customdata = ave_per_3a, text = paste0(
-  "ave_per_2a: ", ave_per_2a,
+  "sampleID: ", sampleID,
+  "<br>GENERICID: ", GENERICID,
+  "<br>PacBio: ", PacBio,
+  "<br>ave_per_2a: ", ave_per_2a,
   "<br>ave_per_2b: ", ave_per_2b,
   "<br>CNR: ", CNR,
   "<br>3A: ", `3A`,

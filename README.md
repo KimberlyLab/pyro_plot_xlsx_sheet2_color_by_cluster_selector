@@ -11,7 +11,7 @@ Install R and make `Rscript` available on your command-line path. Pandoc is opti
 Install the R packages once:
 
 ```r
-install.packages(c("readxl", "ggplot2", "plotly", "htmlwidgets"))
+install.packages(c("optparse", "readxl", "ggplot2", "plotly", "htmlwidgets"))
 ```
 
 Keep these two source files together:
@@ -39,9 +39,11 @@ Show help:
 Rscript pyro_plot_xlsx_sheet2_color_by_cluster.R --help
 ```
 
+The `optparse` package generates this help from the option definitions, including their default values.
+
 | Option aliases | Default |
 | --- | --- |
-| `--in`, `--xlsx`, `-x`, `-i` | `export_v02_2ab_popgen1.mapv2.batch_corrected_norm.logit.xlsx` |
+| `--in`, `--xlsx`, `-x`, `-i` | `data/export_v02_2ab_popgen1.mapv2.batch_corrected_norm.logit.curatedv1.xlsx` |
 | `-s`, `--sheet`, `--worksheet`, `-w` | `Sheet2` |
 | `-o`, `--outdir` | `./figures/` |
 | `-h`, `--help` | Print usage and exit. |
@@ -65,19 +67,26 @@ Rscript pyro_plot_xlsx_sheet2_color_by_cluster.R
 
 ## Workbook layout
 
-The selected worksheet must have headers in **row 2** and observations starting in **row 3**. Row 1 is ignored. Only columns **A:P** are read; columns are identified by their exact, case-sensitive headers within that range.
+The selected worksheet must have headers in **row 2** and observations starting in **row 3**. Row 1 is ignored. Only columns **A:R** are read; columns are identified by their exact, case-sensitive headers within that range.
 
 | Required header | Use |
 | --- | --- |
-| `sampleID` | Plotly point key and downloaded sample identifier. |
+| `sampleID` | Plotly point key, hover value, and downloaded sample identifier. |
+| `GENERICID` | Additional Plotly hover value. |
 | `ave_per_2a` | Numeric x-coordinate and selection mean. |
 | `ave_per_2b` | Numeric y-coordinate and selection mean. |
 | `ave_per_3a` | Numeric selection mean used in download filenames. |
 | `CNR` | Categorical point color and most common selected cluster. |
+| `PacBio` | Point shape and hover value. |
+| `CNRgrid` | Required workbook column. |
 | `3A` | Additional hover value. |
 | `3B` | Additional hover value. |
 
-`3A` and `ave_per_3a` are separate columns with different uses. Other columns within A:P are allowed. Rows with missing or non-finite x/y coordinates are omitted with a warning. Missing required headers, nonnumeric x/y columns, or no usable coordinates stop the run.
+`3A` and `ave_per_3a` are separate columns with different uses. Other columns within A:R are allowed. Rows with missing or non-finite x/y coordinates are omitted with a warning. Missing required headers, nonnumeric x/y columns, or no usable coordinates stop the run.
+
+### CNR colors
+
+Edit the named `cnr_colors` vector in `pyro_plot_xlsx_sheet2_color_by_cluster.R` to assign a color to each `CNR` value. Names must exactly match the values in the worksheet; colors can be hex codes or R color names. `centroid` is dark blue (`#123B7A`), as is the earlier spelling `cendtroid` if it occurs. The value `0` is medium gray (`#808080`). Other current values have their own editable entries. Values without an entry receive an automatically generated color. The same colors appear in the HTML, PDF, and PNG plots.
 
 ## Outputs
 
@@ -113,7 +122,7 @@ For `--xlsx data/my_workbook.xlsx --sheet Sheet2`, the HTML is `./figures/my_wor
 
 ### Download contents and filenames
 
-Hover text includes `ave_per_2a`, `ave_per_2b`, `CNR`, `3A`, and `3B`.
+Hover text includes `sampleID`, `GENERICID`, `PacBio`, `ave_per_2a`, `ave_per_2b`, `CNR`, `3A`, and `3B`.
 
 Each download contains one `sampleID` per selected point, without a header. Duplicate IDs are retained if multiple selected points share an ID. Empty selections do not trigger downloads; a selection with a missing sample ID is cancelled with a browser-console error.
 
@@ -140,6 +149,6 @@ The script retrieves IDs from the selected trace's `key` array using the point i
 
 - **Workbook not found:** check the input path relative to your current working directory, or pass an absolute path with `--xlsx`.
 - **Worksheet not found:** use its exact name with `--sheet`; the error lists available worksheets.
-- **Missing required columns:** check row 2 and ensure all required headers fall within A:P.
+- **Missing required columns:** check row 2 and ensure all required headers fall within A:R.
 - **Pandoc unavailable message:** informational; HTML is saved with a companion `_files` directory, and PDF/PNG export continues. To generate a single self-contained HTML file, install Pandoc and ensure `Rscript -e 'rmarkdown::pandoc_available()'` returns `TRUE` in the environment running the script, then rerun it.
 - **Selection download does not appear:** use the selection tools rather than zoom, check the browser's download permissions, and inspect its console for missing-ID errors.
